@@ -1,0 +1,21 @@
+#maxBtn {
+    -fx-background-color: transparent;
+    -fx-graphic: url("../../images/maxBtn.png");
+    -fx-content-display: center;
+}
+
+#minBtn {
+    -fx-background-color: transparent;
+    -fx-graphic: url("../../images/minBtn.png");
+    -fx-content-display: center;
+}
+
+#closeBtn {
+    -fx-background-color: transparent;
+    -fx-graphic: url("../../images/closeBtn.png");
+    -fx-content-display: center;
+}
+
+#topBar {
+    -fx-background-color: "#1F2022";
+}
