@@ -16,16 +16,15 @@ import java.io.IOException;
 public class App extends Application {
 
     private static Scene scene;
-    private static Stage thisStage;
-
+    private static Stage stage;
+    
     @Override
-    public void start(Stage stage) throws IOException {
+    public void start(Stage primaryStage) throws IOException {
+        stage = primaryStage;
         scene = new Scene(loadFXML("primary"));
-        thisStage = stage;
         stage.initStyle(StageStyle.UNDECORATED);
         stage.setScene(scene);
         stage.show();
-
     }
 
     static void setRoot(String fxml) throws IOException {
@@ -42,17 +41,16 @@ public class App extends Application {
     }
 
     //button methods
-    static void onMax() {
-        thisStage.setMaximized(!thisStage.isMaximized());
+    public static void onMax() {
+        stage.setMaximized(!stage.isMaximized());
     }
 
-    static void onMin() {
-        thisStage.setIconified(true);
+    public static void onMin() {
+        stage.setIconified(true);
     }
 
-    static void onClose() {
+    public static void onClose() {
         Platform.exit();
         System.exit(0);
     }
-
 }
