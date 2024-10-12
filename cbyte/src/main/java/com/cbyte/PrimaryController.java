@@ -3,13 +3,18 @@ package com.cbyte;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.Node;
+import javafx.scene.layout.TilePane;
+import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.util.Callback;
@@ -23,58 +28,30 @@ import java.util.Date;
 
 import javafx.event.ActionEvent;
 
-
 public class PrimaryController implements Initializable {
 
     @FXML
     private Button minBtn, maxBtn, closeBtn, openBtn;
 
     @FXML
-    private TreeView<File> treeView;
-    private static final double ICON_SIZE = 16.0; // or whatever size you prefer
+    private ScrollPane scrollPane;
+    
+    @FXML
+    private TilePane tilePane;
+    
+    private static final double ICON_SIZE = 48.0; // Larger icon size
+    private static final double TILE_SIZE = 100.0; // Size of each tile
 
     private Image folderIcon = new Image(getClass().getResourceAsStream("/images/folder.png"));
     private Image fileIcon = new Image(getClass().getResourceAsStream("/images/cpp.png"));
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-       treeView.setCellFactory(param -> new TreeCell<File>() {
-            private ImageView imageView = new ImageView();
-            private Label nameLabel = new Label();
-            private Label detailsLabel = new Label();
-            private HBox hbox = new HBox(5);
-
-            {
-                imageView.setFitWidth(ICON_SIZE);
-                imageView.setFitHeight(ICON_SIZE);
-                imageView.setPreserveRatio(true);
-                hbox.getChildren().addAll(imageView, nameLabel, detailsLabel);
-            }
-
-            @Override
-            protected void updateItem(File file, boolean empty) {
-                super.updateItem(file, empty);
-                if (empty || file == null) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    nameLabel.setText(file.getName());
-                    if (file.isDirectory()) {
-                        imageView.setImage(folderIcon);
-                        detailsLabel.setText("Directory");
-                    } else {
-                        imageView.setImage(fileIcon);
-                        detailsLabel.setText(String.format("%.2f KB", file.length() / 1024.0)); // displaying file size
-                    }
-                    SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
-                    detailsLabel.setText(detailsLabel.getText() + " - " + sdf.format(file.lastModified()));
-                    setGraphic(hbox);
-                }
-                
-            }
-       });
-
-       treeView.setRoot(null);
+        tilePane = new TilePane();
+        tilePane.setPrefColumns(5); // Adjust the number of columns as needed
+        tilePane.setHgap(10);
+        tilePane.setVgap(10);
+        scrollPane.setContent(tilePane);
     }
 
     @FXML
@@ -88,51 +65,43 @@ public class PrimaryController implements Initializable {
     }
 
     private void displayFileTree(File directory) {
-        TreeItem<File> root = createNode(directory);
-        treeView.setRoot(root);
+        tilePane.getChildren().clear();
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                addFileToTilePane(file);
+            }
+        }
     }
 
-    private TreeItem<File> createNode(final File f) {
-        return new TreeItem<File>(f) {
-            private boolean isLeaf;
-            private boolean isFirstTimeChildren = true;
-            private boolean isFirstTimeLeaf = true;
+    private void addFileToTilePane(File file) {
+        VBox fileBox = new VBox(5);
+        fileBox.setPrefSize(TILE_SIZE, TILE_SIZE);
+        fileBox.setAlignment(javafx.geometry.Pos.CENTER);
 
-            @Override
-            public ObservableList<TreeItem<File>> getChildren() {
-                if (isFirstTimeChildren) {
-                    isFirstTimeChildren = false;
-                    super.getChildren().setAll(buildChildren(this));
-                }
-                return super.getChildren();
-            }
+        ImageView imageView = new ImageView();
+        imageView.setFitWidth(ICON_SIZE);
+        imageView.setFitHeight(ICON_SIZE);
+        imageView.setPreserveRatio(true);
 
-            @Override
-            public boolean isLeaf() {
-                if (isFirstTimeLeaf) {
-                    isFirstTimeLeaf = false;
-                    File f = getValue();
-                    isLeaf = f.isFile();
-                }
-                return isLeaf;
-            }
+        Label nameLabel = new Label(file.getName());
+        nameLabel.setWrapText(true);
+        nameLabel.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
 
-            private ObservableList<TreeItem<File>> buildChildren(TreeItem<File> TreeItem) {
-            File f = TreeItem.getValue();
-            if (f != null && f.isDirectory()) {
-            File[] files = f.listFiles();
-                if (files != null) {
-                    ObservableList<TreeItem<File>> children = FXCollections.observableArrayList();
-                    for (File childFile : files) {
-                        children.add(createNode(childFile));
-                    }
-                        return children;
-                    }
-                }
-                return FXCollections.emptyObservableList();
+        if (file.isDirectory()) {
+            imageView.setImage(folderIcon);
+        } else {
+            imageView.setImage(fileIcon);
         }
-    };
-}
+
+        fileBox.getChildren().addAll(imageView, nameLabel);
+        
+        // Add hover effect
+        fileBox.setOnMouseEntered(e -> fileBox.setStyle("-fx-background-color: lightblue;"));
+        fileBox.setOnMouseExited(e -> fileBox.setStyle(""));
+
+        Platform.runLater(() -> tilePane.getChildren().add(fileBox));
+    }
 
     @FXML
     private void onClose() throws IOException {
