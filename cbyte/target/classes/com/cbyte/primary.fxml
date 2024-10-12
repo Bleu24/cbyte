@@ -4,8 +4,10 @@
 <?import javafx.scene.Cursor?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TreeView?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextArea?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.TilePane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.VBox?>
@@ -18,7 +20,8 @@
             <Label id="cByte" alignment="CENTER" prefHeight="17.0" prefWidth="587.0" text="C-Byte" textAlignment="CENTER" textFill="WHITE">
                <font>
                   <Font name="Consolas" size="13.0" />
-               </font></Label>
+               </font>
+            </Label>
             <HBox alignment="CENTER_RIGHT" prefHeight="100.0" prefWidth="200.0" spacing="20.0">
                <children>
                   <Button id="minBtn" fx:id="minBtn" alignment="CENTER" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" onAction="#onMin">
@@ -29,7 +32,8 @@
                   <Button id="maxBtn" fx:id="maxBtn" mnemonicParsing="false" onAction="#onMax">
                      <cursor>
                         <Cursor fx:constant="HAND" />
-                     </cursor></Button>
+                     </cursor>
+                  </Button>
                   <Button id="closeBtn" fx:id="closeBtn" layoutX="174.0" layoutY="19.0" mnemonicParsing="false" onAction="#onClose">
                      <cursor>
                         <Cursor fx:constant="HAND" />
@@ -47,12 +51,13 @@
       <Pane fx:id="terminalPane" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
          <padding>
             <Insets bottom="20.0" />
-         </padding></Pane>
+         </padding>
+      </Pane>
    </bottom>
    <left>
       <VBox alignment="CENTER" prefHeight="457.0" prefWidth="218.0" spacing="10.0" BorderPane.alignment="TOP_CENTER">
          <children>
-            <TreeView fx:id="treeView" prefHeight="394.0" prefWidth="188.0" />
+            <TextArea prefHeight="407.0" prefWidth="188.0" />
             <HBox alignment="CENTER" spacing="10.0">
                <children>
                   <Button fx:id="openBtn" mnemonicParsing="false" onAction="#handleOpenButton" text="Open" />
@@ -62,12 +67,14 @@
          </children>
          <padding>
             <Insets left="20.0" right="10.0" top="5.0" />
-         </padding></VBox>
+         </padding>
+      </VBox>
    </left>
    <center>
-      <Pane fx:id="fileChooserPane" prefHeight="457.0" prefWidth="799.0" BorderPane.alignment="CENTER">
-         <padding>
-            <Insets right="20.0" />
-         </padding></Pane>
+      <ScrollPane fx:id="scrollPane" fitToWidth="true" fitToHeight="true" BorderPane.alignment="CENTER">
+         <content>
+            <TilePane fx:id="tilePane" hgap="10" vgap="10" prefColumns="5" />
+         </content>
+      </ScrollPane>
    </center>
 </BorderPane>
