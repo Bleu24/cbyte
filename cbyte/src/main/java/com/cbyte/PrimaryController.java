@@ -28,6 +28,8 @@ import java.util.Date;
 
 import javafx.event.ActionEvent;
 
+// TODO: terminal, logic
+
 public class PrimaryController implements Initializable {
 
     @FXML
