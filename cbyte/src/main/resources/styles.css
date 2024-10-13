@@ -1,0 +1,51 @@
+#maxBtn {
+    -fx-background-color: transparent;
+    -fx-graphic: url("../../images/maxBtn.png");
+    -fx-content-display: center;
+}
+
+#minBtn {
+    -fx-background-color: transparent;
+    -fx-graphic: url("../../images/minBtn.png");
+    -fx-content-display: center;
+}
+
+#closeBtn {
+    -fx-background-color: transparent;
+    -fx-graphic: url("../../images/closeBtn.png");
+    -fx-content-display: center;
+}
+
+#topBar {
+    -fx-background-color: "#1F2022";
+}
+
+
+.button {
+    -fx-font-weight: bold;
+}
+
+.text-area {
+
+    -fx-font-size: 14px;
+    -fx-font-family: Monospaced;
+    -fx-text-fill: yellow;
+    -fx-font-weight: bold;
+}
+
+.text-area .content {
+    -fx-background-color: black;
+}
+
+.text-field {
+    -fx-font-size: 14px;
+    -fx-font-family: Monospaced;
+    -fx-text-fill: yellow;
+    -fx-font-weight: bold;
+    -fx-background-color: black;
+}
+
+.tab-pane {
+    -fx-open-tab-animation: NONE;
+    -fx-close-tab-animation: NONE;
+}
