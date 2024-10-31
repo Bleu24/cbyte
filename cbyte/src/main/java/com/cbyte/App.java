@@ -1,11 +1,13 @@
 package com.cbyte;
 
+import atlantafx.base.theme.Dracula;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.JavaFXBuilderFactory;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
@@ -22,26 +24,20 @@ public class App extends Application {
     
     @Override
     public void start(Stage stage) throws IOException {
-        
-    
         scene = new Scene(loadFXML("primary"));
-        scene.getStylesheets().add(App.class.getResource("/styles.css").toExternalForm());
-        
+
+        // Apply the Dracula theme
+        Application.setUserAgentStylesheet(new Dracula().getUserAgentStylesheet());
+
+        // Load the custom font
+        Font font = Font.loadFont(App.class.getResource("/fonts/FiraCode-VariableFont_wght.ttf").toExternalForm(), 14);
+
         thisStage = stage;
         thisStage.setTitle("TerminalFX");
         thisStage.initStyle(StageStyle.UNDECORATED);
         thisStage.setScene(scene);
         thisStage.show();
     }
-
-        /**
-             * The main() method is ignored in correctly deployed JavaFX application.
-             * main() serves only as fallback in case the application can not be
-             * launched through deployment artifacts, e.g., in IDEs with limited FX
-             * support. NetBeans ignores main().
-             *
-             * @param args the command line arguments
-             */
     
 
     static void setRoot(String fxml) throws IOException {
