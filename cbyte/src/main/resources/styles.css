@@ -1,3 +1,18 @@
+.root {
+    -fx-font-family: "Fira Code Light";
+}
+
+#topBar {
+    -fx-background-color: "#6c5cb4";
+}
+
+#fileChooser {
+    -fx-border-color: "#6c5cb4"; /* Border color (purple) */
+    -fx-border-width: 0 0.5px 0 0; /* Top, right, bottom, left */
+    -fx-border-style: solid; /* Solid border style */
+}
+
+/* Styling for custom buttons (min, max, close) */
 #maxBtn {
     -fx-background-color: transparent;
     -fx-graphic: url("./images/maxBtn.png");
@@ -14,38 +29,4 @@
     -fx-background-color: transparent;
     -fx-graphic: url("./images/closeBtn.png");
     -fx-content-display: center;
-}
-
-#topBar {
-    -fx-background-color: "#1F2022";
-}
-
-
-.button {
-    -fx-font-weight: bold;
-}
-
-.text-area {
-
-    -fx-font-size: 12px;
-    -fx-font-family: Monospaced;
-    -fx-text-fill: black;
-    -fx-font-weight: bold;
-}
-
-.text-area .content {
-    -fx-background-color: white;
-}
-
-.text-field {
-    -fx-font-size: 12px;
-    -fx-font-family: Monospaced;
-    -fx-text-fill: black;
-    -fx-font-weight: bold;
-    -fx-background-color: white;
-}
-
-.tab-pane {
-    -fx-open-tab-animation: NONE;
-    -fx-close-tab-animation: NONE;
 }
