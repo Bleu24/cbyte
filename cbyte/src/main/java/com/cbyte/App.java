@@ -1,5 +1,7 @@
 package com.cbyte;
 
+import java.io.IOException;
+
 import atlantafx.base.theme.Dracula;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -10,8 +12,6 @@ import javafx.scene.Scene;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-
-import java.io.IOException;
 
 /**
  * JavaFX App
@@ -33,7 +33,7 @@ public class App extends Application {
         Font font = Font.loadFont(App.class.getResource("/fonts/FiraCode-VariableFont_wght.ttf").toExternalForm(), 14);
 
         thisStage = stage;
-        thisStage.setTitle("TerminalFX");
+        thisStage.setTitle("CByte");
         thisStage.initStyle(StageStyle.UNDECORATED);
         thisStage.setScene(scene);
         thisStage.show();
