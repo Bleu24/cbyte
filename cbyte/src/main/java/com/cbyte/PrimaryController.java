@@ -30,6 +30,8 @@ import java.util.ResourceBundle;
 
 import com.cbyte.classes.Interpreter;
 
+import static com.cbyte.classes.Interpreter.translateToAssembly;
+
 public class PrimaryController implements Initializable {
 
     @FXML
@@ -50,6 +52,7 @@ public class PrimaryController implements Initializable {
     private final Image fileIcon = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/images/cpp-3d.png")));
     private static String fileName;
     private static final String OUTPUT_FILE_PATH = "output.txt";
+    private static String sourceCode;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -250,12 +253,21 @@ public class PrimaryController implements Initializable {
         }
     }
 
-    //getter for fileName
+    // Getter for fileName
     public static String getFileName() {
         return fileName;
     }
 
-//
+    // Getter and setter for sourceCode
+    public static String getSourceCode() {
+        return sourceCode;
+    }
+
+    public static void setSourceCode(String sourceCode) {
+        PrimaryController.sourceCode = sourceCode;
+    }
+
+    //
 //    FXML METHODS
 //
 
@@ -277,24 +289,45 @@ public class PrimaryController implements Initializable {
     private void compileFile(ActionEvent event) {
         if (currentFile != null) {
             System.out.println("Compiling file: " + currentFile.getAbsolutePath());
-            String output = Interpreter.interpretFile(currentFile);
 
-            // Call assembleCode() immediately
-            assembleCode();
+            // Get the output from interpretFile
+            Boolean output = Interpreter.interpretFile(currentFile);
 
-            // Create a Timeline to introduce a delay before calling linkCode() and then runCode()
-            Timeline timeline = new Timeline(
-                    new KeyFrame(Duration.seconds(2), e -> {
-                        linkCode();
+            // Check if the output indicates an error
+            if (!output) {
+                sourceCode = "";
+                System.out.println("Compilation halted due to an error.");
+                return; // Stop further execution
+            }
 
-                        // Create another Timeline to call runCode() after linkCode()
-                        Timeline runTimeline = new Timeline(new KeyFrame(Duration.seconds(2), ev -> runCode()));
-                        runTimeline.setCycleCount(1); // Run only once
-                        runTimeline.play();
-                    })
-            );
-            timeline.setCycleCount(1); // Run only once
-            timeline.play();
+            // Call translateToAssembly and store the result
+            String assemblyCode = Interpreter.translateToAssembly(sourceCode);
+            System.out.println(assemblyCode);
+
+            // Check if the translation was successful
+            if (assemblyCode != null && !assemblyCode.startsWith("; Error")) {
+                // If no error, proceed to assemble and run the code
+                System.out.println("Assembly code translation successful.");
+                assembleCode();
+
+                // Create a Timeline to introduce a delay before calling linkCode() and then runCode()
+                Timeline timeline = new Timeline(
+                        new KeyFrame(Duration.seconds(2), e -> {
+                            linkCode();
+
+                            // Create another Timeline to call runCode() after linkCode()
+                            Timeline runTimeline = new Timeline(new KeyFrame(Duration.seconds(2), ev -> runCode()));
+                            runTimeline.setCycleCount(1); // Run only once
+                            runTimeline.play();
+                        })
+                );
+                timeline.setCycleCount(1); // Run only once
+                timeline.play();
+            } else {
+                // Print error message if the assembly code contains errors or is null
+                System.out.println("Assembly translation failed or contains errors.");
+            }
+
         } else {
             System.out.println("No file selected to compile.");
         }

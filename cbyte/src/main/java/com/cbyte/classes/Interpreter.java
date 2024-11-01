@@ -52,17 +52,22 @@ public class Interpreter {
         return cleanedCode;
     }
 
-    // Improved syntax checker using simplified regular expressions
-    private static boolean checkSyntax(String code) {
+    // Enhanced syntax checker with added support for double values and arithmetic expressions
+    private static Set<String> checkSyntax(String code) {
         bufferMessage("\nStarting syntax check for code:\n" + code + "\n");
 
-        // Regular expressions for different constructs
+        // Regular expressions for various C++ constructs
         String variableDeclarationRegex = "\\b(int|double)\\b\\s+\\w+\\s*";
-        String assignmentRegex = "\\w+\\s*=\\s*\\d+\\s*";
-        String inputRegex = "cin\\s*>>\\s*\\w+\\s*";
-        String outputRegex = "cout\\s*<<\\s*(\\w+|\".*\"|\\w+\\s*([+\\-*/]\\s*\\w+)+)\\s*";
+        String variableInitializationRegex = "\\b(int|double)\\b\\s+\\w+\\s*=\\s*\\d+(\\.\\d+)?\\s*";
+        // Updated assignment regex to handle arithmetic expressions and double values
+        String assignmentRegex = "\\w+\\s*=\\s*\\w+(\\s*\\+\\s*\\d+(\\.\\d+)?)?\\s*|\\w+\\s*=\\s*\\d+(\\.\\d+)?\\s*";
+        String inputRegex = "cin(\\s*>>\\s*\\w+)+\\s*";
+        String outputRegex = "cout(\\s*<<\\s*(\".*?\"|\\w+|\\d+|\\s*\\w+\\s*))*\\s*";
 
-        // Split the code into individual statements
+        Set<String> declaredVariables = new HashSet<>();
+        Map<String, String> variableTypes = new HashMap<>(); // Added to track variable types
+
+        // Split the code into individual statements using semicolons as delimiters
         String[] statements = code.split(";");
         for (String statement : statements) {
             statement = statement.trim();
@@ -70,103 +75,331 @@ public class Interpreter {
 
             bufferMessage("\nChecking statement: '" + statement + "'\n");
 
-            // Check each statement against all valid patterns
-            if (!statement.matches(variableDeclarationRegex) &&
-                    !statement.matches(assignmentRegex) &&
-                    !statement.matches(inputRegex) &&
-                    !statement.matches(outputRegex)) {
+            // Check for variable declaration without initialization
+            if (statement.matches(variableDeclarationRegex)) {
+                String[] parts = statement.split("\\s+");
+                String varType = parts[0].trim();
+                String variableName = parts[1].trim();
+                declaredVariables.add(variableName);
+                variableTypes.put(variableName, varType); // Add the variable type
+            }
+            // Check for variable declaration with initialization
+            else if (statement.matches(variableInitializationRegex)) {
+                String[] parts = statement.split("\\s+");
+                String varType = parts[0].trim();
+                String variableName = parts[1].split("=")[0].trim();
+                declaredVariables.add(variableName);
+                variableTypes.put(variableName, varType); // Add the variable type
+            }
+            // Check for assignment or arithmetic expressions
+            else if (statement.matches(assignmentRegex)) {
+                String variableName = statement.split("=")[0].trim();
+                if (!declaredVariables.contains(variableName)) {
+                    bufferMessage("Syntax error: Variable '" + variableName + "' is not declared before assignment.\n");
+                    return null;
+                }
+            }
+            // Check for input operation
+            else if (statement.matches(inputRegex)) {
+                String[] variables = statement.split(">>");
+                for (int i = 1; i < variables.length; i++) {
+                    String variableName = variables[i].trim();
+                    if (!declaredVariables.contains(variableName)) {
+                        bufferMessage("Syntax error: Variable '" + variableName + "' used in input is not declared.\n");
+                        return null;
+                    }
+                }
+            }
+            // Check for output operation
+            else if (statement.matches(outputRegex)) {
+                String[] parts = statement.split("<<");
+                for (String part : parts) {
+                    part = part.trim();
+                    if (part.equals("cout") || (part.startsWith("\"") && part.endsWith("\"")) || part.matches("\\d+")) {
+                        continue;
+                    }
+                    if (!part.isEmpty() && !declaredVariables.contains(part)) {
+                        bufferMessage("Syntax error: Variable '" + part + "' used in output is not declared.\n");
+                        return null;
+                    }
+                }
+            }
+            // If the statement does not match any valid construct, it's a syntax error
+            else {
                 bufferMessage("Syntax error found in statement: '" + statement + "'\n");
-                return false;
+                return null;
             }
         }
 
         bufferMessage("Syntax check passed for all statements.\n");
-        return true;
+        return declaredVariables;
     }
 
-    // Translates C++ code to x86 NASM assembly language for Windows and saves it in a file
-    private static String translateToAssembly(String code) {
+    // Updated translator for x86-64 NASM assembly language - can read inputs
+    public static String translateToAssembly(String code) {
+        // Perform syntax checking and get the set of declared variables
+        Set<String> declaredVariables = checkSyntax(code);
+        if (declaredVariables == null) {
+            return "; Error: Syntax check failed. See messages for details.\n";
+        }
+
         StringBuilder assemblyCode = new StringBuilder();
-        Map<String, String> variableRegisters = new HashMap<>();
-        int registerIndex = 0;
-        String[] registers = {"rcx", "rdx", "r8", "r9"}; // Use x64 registers for Windows calling convention
-        StringBuilder dataSection = new StringBuilder("section .data\n");
-        StringBuilder bssSection = new StringBuilder("section .bss\n");
+        Map<String, String> variableTypes = new HashMap<>();
+        Map<String, String> doubleValues = new HashMap<>(); // To store double constants
         int stringCounter = 0;
+        int doubleCounter = 0;
+
+        // Sections for data, bss, and text
+        StringBuilder dataSection = new StringBuilder("section .data\n");
+        StringBuilder bssSection = new StringBuilder("section .bss\n"); // Uninitialized data
+
+        // Adding format specifiers with newline for better readability
+        dataSection.append("formatInt: db \"%d\", 10, 0\n");      // "%d\n"
+        dataSection.append("formatDouble: db \"%lf\", 10, 0\n");  // "%lf\n"
+        dataSection.append("inputInt: db \"%d\", 0\n");           // "%d"
+        dataSection.append("inputDouble: db \"%lf\", 0\n");       // "%lf"
 
         assemblyCode.append("section .text\n");
-        assemblyCode.append("\tglobal main\n");
         assemblyCode.append("\textern printf\n");
+        assemblyCode.append("\textern scanf\n"); // Include scanf for input
+        assemblyCode.append("\tglobal main\n");
         assemblyCode.append("main:\n");
 
+        // Prologue: Set up stack frame
+        assemblyCode.append("\tpush rbp\n");
+        assemblyCode.append("\tmov rbp, rsp\n");
+
+        // Split code into individual lines
         String[] lines = code.split(";");
         for (String line : lines) {
             line = line.trim();
             if (line.isEmpty()) continue;
 
             if (line.startsWith("int") || line.startsWith("double")) {
-                // Handle variable declaration
-                String varName = line.split(" ")[1].replace(";", "").trim();
-                if (!variableRegisters.containsKey(varName)) {
-                    if (registerIndex >= registers.length) {
-                        return "; Error: Too many variables declared. Not enough registers available.\n";
+                // Handle variable declaration and initialization
+                String[] parts = line.split("\\s+");
+                String varType = parts[0].trim();
+                String varName = parts[1].trim().replace(";", "");
+                String value = "0";
+
+                // Check for initialization
+                if (varName.contains("=")) {
+                    String[] varParts = varName.split("=");
+                    varName = varParts[0].trim();
+                    value = varParts[1].trim();
+                }
+
+                // Register the variable type
+                variableTypes.put(varName, varType);
+
+                if (varType.equals("int")) {
+                    bssSection.append(varName).append(": resd 1\n"); // Reserve space for a 32-bit integer
+                    if (!value.equals("0")) { // Handle initialization
+                        assemblyCode.append("\tmov dword [rel ").append(varName).append("], ").append(value).append("\n");
                     }
-                    variableRegisters.put(varName, registers[registerIndex++]);
-                    assemblyCode.append("\t; Declare ").append(varName).append("\n");
+                } else if (varType.equals("double")) {
+                    bssSection.append(varName).append(": resq 1\n"); // Reserve space for a 64-bit double
+                    if (!value.equals("0")) {
+                        // Store the double value in the data section
+                        String doubleLabel = "doubleValue" + doubleCounter++;
+                        dataSection.append(doubleLabel).append(": dq ").append(value).append("\n");
+
+                        // Load the double value and store it in the variable
+                        assemblyCode.append("\tmovsd xmm0, [rel ").append(doubleLabel).append("]\n");
+                        assemblyCode.append("\tmovsd [rel ").append(varName).append("], xmm0\n");
+                    }
                 }
             } else if (line.contains("=")) {
-                // Handle variable initialization
+                // Handle variable assignment
                 String[] parts = line.split("=");
                 String varName = parts[0].trim();
-                String value = parts[1].replace(";", "").trim();
-                String register = variableRegisters.get(varName);
+                String expression = parts[1].trim();
 
-                if (register == null) {
+                if (!declaredVariables.contains(varName)) {
                     return "; Error: Variable '" + varName + "' is not declared.\n";
                 }
 
-                assemblyCode.append("\tmov ").append(register).append(", ").append(value).append("\n");
+                String varType = variableTypes.get(varName);
+
+                // Handle assignment with arithmetic operations
+                if (varType.equals("int")) {
+                    if (expression.matches("\\d+\\s*\\+\\s*\\d+")) {
+                        // Both operands are integers
+                        String[] exprParts = expression.split("\\+");
+                        int operand1 = Integer.parseInt(exprParts[0].trim());
+                        int operand2 = Integer.parseInt(exprParts[1].trim());
+                        int result = operand1 + operand2;
+                        assemblyCode.append("\tmov dword [rel ").append(varName).append("], ").append(result).append("\n");
+                    } else if (expression.matches("\\w+\\s*\\+\\s*\\d+")) {
+                        // Integer arithmetic: var + immediate
+                        String[] exprParts = expression.split("\\+");
+                        String baseVar = exprParts[0].trim();
+                        String operand = exprParts[1].trim();
+                        assemblyCode.append("\tmov eax, [rel ").append(baseVar).append("]\n");
+                        assemblyCode.append("\tadd eax, ").append(operand).append("\n");
+                        assemblyCode.append("\tmov [rel ").append(varName).append("], eax\n");
+                    } else if (expression.matches("\\d+\\s*\\+\\s*\\w+")) {
+                        // Integer arithmetic: immediate + var
+                        String[] exprParts = expression.split("\\+");
+                        String operand = exprParts[0].trim();
+                        String baseVar = exprParts[1].trim();
+                        assemblyCode.append("\tmov eax, ").append(operand).append("\n");
+                        assemblyCode.append("\tadd eax, [rel ").append(baseVar).append("]\n");
+                        assemblyCode.append("\tmov [rel ").append(varName).append("], eax\n");
+                    } else if (expression.matches("\\w+\\s*\\+\\s*\\w+")) {
+                        // Integer arithmetic: var + var
+                        String[] exprParts = expression.split("\\+");
+                        String var1 = exprParts[0].trim();
+                        String var2 = exprParts[1].trim();
+                        assemblyCode.append("\tmov eax, [rel ").append(var1).append("]\n");
+                        assemblyCode.append("\tadd eax, [rel ").append(var2).append("]\n");
+                        assemblyCode.append("\tmov [rel ").append(varName).append("], eax\n");
+                    } else {
+                        // Simple integer assignment
+                        assemblyCode.append("\tmov dword [rel ").append(varName).append("], ").append(expression).append("\n");
+                    }
+                } else if (varType.equals("double")) {
+                    if (expression.matches("\\d+(\\.\\d+)?\\s*\\+\\s*\\d+(\\.\\d+)?")) {
+                        // Both operands are doubles (constants)
+                        String[] exprParts = expression.split("\\+");
+                        double operand1 = Double.parseDouble(exprParts[0].trim());
+                        double operand2 = Double.parseDouble(exprParts[1].trim());
+                        double result = operand1 + operand2;
+                        String doubleLabel = "doubleValue" + doubleCounter++;
+                        dataSection.append(doubleLabel).append(": dq ").append(result).append("\n");
+                        assemblyCode.append("\tmovsd xmm0, [rel ").append(doubleLabel).append("]\n");
+                        assemblyCode.append("\tmovsd [rel ").append(varName).append("], xmm0\n");
+                    } else if (expression.matches("\\w+\\s*\\+\\s*\\w+") || expression.matches("\\w+\\s*\\+\\s*\\d+(\\.\\d+)?") || expression.matches("\\d+(\\.\\d+)?\\s*\\+\\s*\\w+")) {
+                        // Double arithmetic (addition): var + var or var + immediate or immediate + var
+                        String[] exprParts = expression.split("\\+");
+                        String operand1 = exprParts[0].trim();
+                        String operand2 = exprParts[1].trim();
+
+                        // Load first operand
+                        if (variableTypes.containsKey(operand1)) {
+                            assemblyCode.append("\tmovsd xmm0, [rel ").append(operand1).append("]\n");
+                        } else {
+                            // Immediate double value
+                            String doubleLabel1 = "doubleValue" + doubleCounter++;
+                            dataSection.append(doubleLabel1).append(": dq ").append(operand1).append("\n");
+                            assemblyCode.append("\tmovsd xmm0, [rel ").append(doubleLabel1).append("]\n");
+                        }
+
+                        // Load second operand
+                        if (variableTypes.containsKey(operand2)) {
+                            assemblyCode.append("\tmovsd xmm1, [rel ").append(operand2).append("]\n");
+                        } else {
+                            // Immediate double value
+                            String doubleLabel2 = "doubleValue" + doubleCounter++;
+                            dataSection.append(doubleLabel2).append(": dq ").append(operand2).append("\n");
+                            assemblyCode.append("\tmovsd xmm1, [rel ").append(doubleLabel2).append("]\n");
+                        }
+
+                        assemblyCode.append("\taddsd xmm0, xmm1\n");
+                        assemblyCode.append("\tmovsd [rel ").append(varName).append("], xmm0\n");
+                    } else {
+                        // Simple double assignment
+                        String doubleLabel = "doubleValue" + doubleCounter++;
+                        dataSection.append(doubleLabel).append(": dq ").append(expression).append("\n");
+                        assemblyCode.append("\tmovsd xmm0, [rel ").append(doubleLabel).append("]\n");
+                        assemblyCode.append("\tmovsd [rel ").append(varName).append("], xmm0\n");
+                    }
+                }
             } else if (line.startsWith("cin>>")) {
-                // Handle input (Windows-specific, simplified)
-                String varName = line.substring(5).replace(";", "").trim();
-                String register = variableRegisters.get(varName);
-
-                if (register == null) {
+                // Handle input using scanf
+                String varName = line.substring(5).trim();
+                if (!declaredVariables.contains(varName)) {
                     return "; Error: Variable '" + varName + "' is not declared.\n";
                 }
-
-                assemblyCode.append("\t; Input ").append(varName).append("\n");
-                assemblyCode.append("\t; Input handling in Windows requires complex API calls, simplified for now\n");
+                String varType = variableTypes.get(varName);
+                if (varType.equals("int")) {
+                    // Setup for scanf
+                    assemblyCode.append("\tlea rcx, [rel inputInt]\n");      // First argument: format string
+                    assemblyCode.append("\tlea rdx, [rel ").append(varName).append("]\n"); // Second argument: address of variable
+                    assemblyCode.append("\txor rax, rax\n");            // Clear RAX for variadic functions
+                    // Prepare stack (shadow space)
+                    assemblyCode.append("\tsub rsp, 40\n"); // 32 bytes shadow space + 8 bytes alignment
+                    // Push arguments onto the stack (right to left)
+                    assemblyCode.append("\tmov [rsp+32], rdx\n"); // Second argument
+                    assemblyCode.append("\tmov [rsp+24], rcx\n"); // First argument
+                    assemblyCode.append("\tcall scanf\n");
+                    // Clean up the stack
+                    assemblyCode.append("\tadd rsp, 40\n");
+                } else if (varType.equals("double")) {
+                    // Setup for scanf
+                    assemblyCode.append("\tlea rcx, [rel inputDouble]\n");   // First argument: format string
+                    assemblyCode.append("\tlea rdx, [rel ").append(varName).append("]\n"); // Second argument: address of variable
+                    assemblyCode.append("\txor rax, rax\n");            // Clear RAX for variadic functions
+                    // Prepare stack (shadow space)
+                    assemblyCode.append("\tsub rsp, 40\n"); // 32 bytes shadow space + 8 bytes alignment
+                    // Push arguments onto the stack (right to left)
+                    assemblyCode.append("\tmov [rsp+32], rdx\n"); // Second argument
+                    assemblyCode.append("\tmov [rsp+24], rcx\n"); // First argument
+                    assemblyCode.append("\tcall scanf\n");
+                    // Clean up the stack
+                    assemblyCode.append("\tadd rsp, 40\n");
+                }
             } else if (line.startsWith("cout<<")) {
                 // Handle output
-                String varName = line.substring(6).replace(";", "").trim();
-                if (varName.startsWith("\"") && varName.endsWith("\"")) {
-                    // Handle string output
-                    String label = "str" + stringCounter++;
-                    dataSection.append(label).append(": db ").append(varName).append(", 0\n");
-                    assemblyCode.append("\t; Output ").append(varName).append("\n");
-                    assemblyCode.append("\tmov rcx, ").append(label).append(" ; First argument to printf\n");
-                    assemblyCode.append("\tcall printf\n");
-                } else {
-                    // Handle variable output
-                    String register = variableRegisters.get(varName);
-                    if (register == null) {
-                        return "; Error: Variable '" + varName + "' is not declared.\n";
-                    }
+                String[] parts = line.substring(6).split("<<");
+                for (String part : parts) {
+                    part = part.trim();
+                    if (part.isEmpty()) continue;
 
-                    assemblyCode.append("\t; Output ").append(varName).append("\n");
-                    assemblyCode.append("\tmov rcx, ").append(register).append(" ; First argument to printf\n");
-                    assemblyCode.append("\tcall printf\n");
+                    if (part.startsWith("\"") && part.endsWith("\"")) {
+                        // Handle string output
+                        String label = "str" + stringCounter++;
+                        dataSection.append(label).append(": db ").append(part).append(", 0\n");
+                        // Prepare stack (shadow space)
+                        assemblyCode.append("\tsub rsp, 40\n"); // 32 bytes shadow space + 8 bytes alignment
+                        // Push arguments onto the stack (right to left)
+                        assemblyCode.append("\tlea rcx, [rel ").append(label).append("]\n");
+                        assemblyCode.append("\tmov [rsp+32], rcx\n");
+                        assemblyCode.append("\tcall printf\n");
+                        // Clean up the stack
+                        assemblyCode.append("\tadd rsp, 40\n");
+                    } else if (variableTypes.containsKey(part)) {
+                        String varType = variableTypes.get(part);
+                        if (varType.equals("int")) {
+                            // Prepare stack (shadow space)
+                            assemblyCode.append("\tsub rsp, 40\n"); // 32 bytes shadow space + 8 bytes alignment
+                            // Push arguments onto the stack (right to left)
+                            assemblyCode.append("\tmov eax, [rel ").append(part).append("]\n");
+                            assemblyCode.append("\tmov [rsp+32], rax\n"); // Argument value
+                            assemblyCode.append("\tlea rcx, [rel formatInt]\n");
+                            assemblyCode.append("\tmov [rsp+24], rcx\n"); // Format string
+                            assemblyCode.append("\tcall printf\n");
+                            // Clean up the stack
+                            assemblyCode.append("\tadd rsp, 40\n");
+                        } else if (varType.equals("double")) {
+                            // Prepare stack (shadow space)
+                            assemblyCode.append("\tsub rsp, 48\n"); // 32 bytes shadow space + 16 bytes for double alignment
+                            // Push arguments onto the stack (right to left)
+                            assemblyCode.append("\tmovsd xmm0, [rel ").append(part).append("]\n");
+                            assemblyCode.append("\tmovsd [rsp+32], xmm0\n"); // Argument value
+                            assemblyCode.append("\tlea rcx, [rel formatDouble]\n");
+                            assemblyCode.append("\tmov [rsp+24], rcx\n"); // Format string
+                            assemblyCode.append("\tcall printf\n");
+                            // Clean up the stack
+                            assemblyCode.append("\tadd rsp, 48\n");
+                        }
+                    } else {
+                        return "; Error: Variable '" + part + "' used in output is not declared.\n";
+                    }
                 }
             }
         }
 
+        // Epilogue: Restore stack frame and return
+        assemblyCode.append("\tmov rsp, rbp\n");
+        assemblyCode.append("\tpop rbp\n");
+        assemblyCode.append("\tmov eax, 0\n"); // Return 0 from main
         assemblyCode.append("\tret\n");
 
         // Combine sections
         String finalAssemblyCode = dataSection.toString() + bssSection.toString() + assemblyCode.toString();
 
-        // Write to file "assembly.asm"
+        // Write the assembly code to a file
         try (FileWriter writer = new FileWriter(PrimaryController.getFileName() + ".asm")) {
             writer.write(finalAssemblyCode);
         } catch (IOException e) {
@@ -177,7 +410,7 @@ public class Interpreter {
         return finalAssemblyCode;
     }
 
-    public static String interpretFile(File file) {
+    public static boolean interpretFile(File file) {
         messageBuffer.setLength(0); // Clear the buffer for a new file
         bufferMessage("\nReading file: " + file.getAbsolutePath() + "\n");
 
@@ -191,7 +424,7 @@ public class Interpreter {
             bufferMessage("Could not open the source file " + file.getAbsolutePath() + "\n");
             writeMessagesToFile(); // Write messages to file
             PrimaryController.printToTerminal(); // Display messages
-            return "Could not open the source file " + file.getAbsolutePath() + "\n";
+            return false; // Return false if the file could not be opened
         }
 
         // Check for reserved words and symbols
@@ -206,24 +439,29 @@ public class Interpreter {
         }
 
         String noSpacesCode = removeSpaces(sourceCode.toString());
+        PrimaryController.setSourceCode(noSpacesCode); // Sets the noSpacesCode as the source code
         if (noSpacesCode.isEmpty()) {
             bufferMessage("ERROR: No content after removing spaces in " + file.getAbsolutePath() + "\n");
             writeMessagesToFile(); // Write messages to file
             PrimaryController.printToTerminal(); // Display messages
-            return "ERROR: No content after removing spaces in " + file.getAbsolutePath() + "\n";
+            return false; // Return false if the content is empty after removing spaces
         }
 
-        if (!checkSyntax(noSpacesCode)) {
+        // Check syntax and stop if there is an error
+        Set<String> variableList = checkSyntax(noSpacesCode);
+
+        if(variableList ==null) {
             bufferMessage("ERROR IN " + file.getAbsolutePath() + "\n");
             writeMessagesToFile(); // Write messages to file
             PrimaryController.printToTerminal(); // Display messages
-            return "ERROR IN " + file.getAbsolutePath() + "\n";
+            return false;
         }
 
-        String assemblyCode = translateToAssembly(noSpacesCode);
+        // If all checks passed
+        bufferMessage("No errors in file. Attempting to translate to x86 NASM assembly code...\n");
         writeMessagesToFile(); // Write messages to file
         PrimaryController.printToTerminal(); // Display messages
-        return assemblyCode;
+        return true; // Return true if no errors were found
     }
 
 }
