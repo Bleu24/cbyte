@@ -62,7 +62,7 @@ public class PrimaryController implements Initializable {
         } else {
             font = Font.loadFont(fontUrl.toExternalForm(), 14);
             System.out.println("Font loaded!");
-            System.out.println("Loaded font family: " + font.getFamily());
+//            System.out.println("Loaded font family: " + font.getFamily());
         }
 
         TerminalConfig darkConfig = new TerminalConfig();

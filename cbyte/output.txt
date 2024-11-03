@@ -1,0 +1,76 @@
+
+Reading file: C:\Users\Bryan Reamillo\repos\124L\tests\PL2.cpp
+
+Checking if 'x' is a reserved word: false
+
+Checking if 'x' is a symbol: false
+
+Checking if '=' is a reserved word: false
+
+Checking if '=' is a symbol: true
+
+Found symbol: =
+
+Checking if '3;' is a reserved word: false
+
+Checking if '3;' is a symbol: false
+
+Checking if 'y' is a reserved word: false
+
+Checking if 'y' is a symbol: false
+
+Checking if '=' is a reserved word: false
+
+Checking if '=' is a symbol: true
+
+Found symbol: =
+
+Checking if '4;' is a reserved word: false
+
+Checking if '4;' is a symbol: false
+
+Checking if 'cout' is a reserved word: true
+
+Found reserved word: cout
+
+Checking if 'cout' is a symbol: false
+
+Checking if '<<' is a reserved word: false
+
+Checking if '<<' is a symbol: true
+
+Found symbol: <<
+
+Checking if 'x' is a reserved word: false
+
+Checking if 'x' is a symbol: false
+
+Checking if '+' is a reserved word: false
+
+Checking if '+' is a symbol: true
+
+Found symbol: +
+
+Checking if 'y;' is a reserved word: false
+
+Checking if 'y;' is a symbol: false
+
+
+Source code after removing spaces:
+x=3;y=4;cout<<x+y;
+
+
+Starting syntax check for code:
+x=3;y=4;cout<<x+y;
+
+
+Checking statement: 'x=3'
+
+
+Checking statement: 'y=4'
+
+
+Checking statement: 'cout<<x+y'
+
+Syntax check passed for all statements.
+
