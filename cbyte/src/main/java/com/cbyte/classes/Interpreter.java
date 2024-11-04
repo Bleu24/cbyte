@@ -1,11 +1,16 @@
 package com.cbyte.classes;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import com.cbyte.PrimaryController; // Import the PrimaryController
 
 public class Interpreter {
@@ -15,7 +20,7 @@ public class Interpreter {
     private static final StringBuilder messageBuffer = new StringBuilder(); // Buffer to collect messages
 
     // Function to write all collected messages to a file
-    private static void writeMessagesToFile() {
+    public static void writeMessagesToFile() {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(OUTPUT_FILE_PATH, false))) { // Overwrite file
             writer.write(messageBuffer.toString());
         } catch (IOException e) {
@@ -24,7 +29,7 @@ public class Interpreter {
     }
 
     // Modified printToTerminal to collect messages in the buffer
-    private static void bufferMessage(String message) {
+    public static void bufferMessage(String message) {
         messageBuffer.append(message).append("\n");
     }
 
@@ -135,279 +140,40 @@ public class Interpreter {
         return declaredVariables;
     }
 
-    // Updated translator for x86-64 NASM assembly language - can read inputs
+    // Function to translate C++ source code to assembly
     public static String translateToAssembly(String code) {
-        // Perform syntax checking and get the set of declared variables
-        Set<String> declaredVariables = checkSyntax(code);
-        if (declaredVariables == null) {
-            return "; Error: Syntax check failed. See messages for details.\n";
-        }
+        try {
+            // Construct valid C++ content by adding necessary headers and a main function
+            String cppContent = "#include <iostream>\nusing namespace std;\nint main() {\n"
+                    + code
+                    + "\nreturn 0;\n}";
 
-        StringBuilder assemblyCode = new StringBuilder();
-        Map<String, String> variableTypes = new HashMap<>();
-        Map<String, String> doubleValues = new HashMap<>(); // To store double constants
-        int stringCounter = 0;
-        int doubleCounter = 0;
+            // Use PrimaryController.getFileName() for the file name
+            String baseFileName = PrimaryController.getFileName();
+            File tempCppFile = new File(baseFileName + ".cpp");
 
-        // Sections for data, bss, and text
-        StringBuilder dataSection = new StringBuilder("section .data\n");
-        StringBuilder bssSection = new StringBuilder("section .bss\n"); // Uninitialized data
+            // Write the C++ content to a file
+            Files.write(tempCppFile.toPath(), cppContent.getBytes());
 
-        // Adding format specifiers with newline for better readability
-        dataSection.append("formatInt: db \"%d\", 10, 0\n");      // "%d\n"
-        dataSection.append("formatDouble: db \"%lf\", 10, 0\n");  // "%lf\n"
-        dataSection.append("inputInt: db \"%d\", 0\n");           // "%d"
-        dataSection.append("inputDouble: db \"%lf\", 0\n");       // "%lf"
+            // Compile the C++ file into an executable using g++
+            Process process = new ProcessBuilder(
+                    "g++", tempCppFile.getName(), "-o", baseFileName + ".exe", "-m64"
+            ).inheritIO().start();
+            process.waitFor();
 
-        assemblyCode.append("section .text\n");
-        assemblyCode.append("\textern printf\n");
-        assemblyCode.append("\textern scanf\n"); // Include scanf for input
-        assemblyCode.append("\tglobal main\n");
-        assemblyCode.append("main:\n");
+            bufferMessage("Compiling the C++ file into an executable using g++...\n");
+            PrimaryController.printToTerminal();
 
-        // Prologue: Set up stack frame
-        assemblyCode.append("\tpush rbp\n");
-        assemblyCode.append("\tmov rbp, rsp\n");
+            // Output success message
+            System.out.println("\nExecutable successfully created! Output -> " + baseFileName + ".exe");
+            bufferMessage("Executable successfully created! Output -> " + baseFileName + ".exe\n");
+            PrimaryController.printToTerminal();
+            return cppContent;
 
-        // Split code into individual lines
-        String[] lines = code.split(";");
-        for (String line : lines) {
-            line = line.trim();
-            if (line.isEmpty()) continue;
-
-            if (line.startsWith("int") || line.startsWith("double")) {
-                // Handle variable declaration and initialization
-                String[] parts = line.split("\\s+");
-                String varType = parts[0].trim();
-                String varName = parts[1].trim().replace(";", "");
-                String value = "0";
-
-                // Check for initialization
-                if (varName.contains("=")) {
-                    String[] varParts = varName.split("=");
-                    varName = varParts[0].trim();
-                    value = varParts[1].trim();
-                }
-
-                // Register the variable type
-                variableTypes.put(varName, varType);
-
-                if (varType.equals("int")) {
-                    bssSection.append(varName).append(": resd 1\n"); // Reserve space for a 32-bit integer
-                    if (!value.equals("0")) { // Handle initialization
-                        assemblyCode.append("\tmov dword [rel ").append(varName).append("], ").append(value).append("\n");
-                    }
-                } else if (varType.equals("double")) {
-                    bssSection.append(varName).append(": resq 1\n"); // Reserve space for a 64-bit double
-                    if (!value.equals("0")) {
-                        // Store the double value in the data section
-                        String doubleLabel = "doubleValue" + doubleCounter++;
-                        dataSection.append(doubleLabel).append(": dq ").append(value).append("\n");
-
-                        // Load the double value and store it in the variable
-                        assemblyCode.append("\tmovsd xmm0, [rel ").append(doubleLabel).append("]\n");
-                        assemblyCode.append("\tmovsd [rel ").append(varName).append("], xmm0\n");
-                    }
-                }
-            } else if (line.contains("=")) {
-                // Handle variable assignment
-                String[] parts = line.split("=");
-                String varName = parts[0].trim();
-                String expression = parts[1].trim();
-
-                if (!declaredVariables.contains(varName)) {
-                    return "; Error: Variable '" + varName + "' is not declared.\n";
-                }
-
-                String varType = variableTypes.get(varName);
-
-                // Handle assignment with arithmetic operations
-                if (varType.equals("int")) {
-                    if (expression.matches("\\d+\\s*\\+\\s*\\d+")) {
-                        // Both operands are integers
-                        String[] exprParts = expression.split("\\+");
-                        int operand1 = Integer.parseInt(exprParts[0].trim());
-                        int operand2 = Integer.parseInt(exprParts[1].trim());
-                        int result = operand1 + operand2;
-                        assemblyCode.append("\tmov dword [rel ").append(varName).append("], ").append(result).append("\n");
-                    } else if (expression.matches("\\w+\\s*\\+\\s*\\d+")) {
-                        // Integer arithmetic: var + immediate
-                        String[] exprParts = expression.split("\\+");
-                        String baseVar = exprParts[0].trim();
-                        String operand = exprParts[1].trim();
-                        assemblyCode.append("\tmov eax, [rel ").append(baseVar).append("]\n");
-                        assemblyCode.append("\tadd eax, ").append(operand).append("\n");
-                        assemblyCode.append("\tmov [rel ").append(varName).append("], eax\n");
-                    } else if (expression.matches("\\d+\\s*\\+\\s*\\w+")) {
-                        // Integer arithmetic: immediate + var
-                        String[] exprParts = expression.split("\\+");
-                        String operand = exprParts[0].trim();
-                        String baseVar = exprParts[1].trim();
-                        assemblyCode.append("\tmov eax, ").append(operand).append("\n");
-                        assemblyCode.append("\tadd eax, [rel ").append(baseVar).append("]\n");
-                        assemblyCode.append("\tmov [rel ").append(varName).append("], eax\n");
-                    } else if (expression.matches("\\w+\\s*\\+\\s*\\w+")) {
-                        // Integer arithmetic: var + var
-                        String[] exprParts = expression.split("\\+");
-                        String var1 = exprParts[0].trim();
-                        String var2 = exprParts[1].trim();
-                        assemblyCode.append("\tmov eax, [rel ").append(var1).append("]\n");
-                        assemblyCode.append("\tadd eax, [rel ").append(var2).append("]\n");
-                        assemblyCode.append("\tmov [rel ").append(varName).append("], eax\n");
-                    } else {
-                        // Simple integer assignment
-                        assemblyCode.append("\tmov dword [rel ").append(varName).append("], ").append(expression).append("\n");
-                    }
-                } else if (varType.equals("double")) {
-                    if (expression.matches("\\d+(\\.\\d+)?\\s*\\+\\s*\\d+(\\.\\d+)?")) {
-                        // Both operands are doubles (constants)
-                        String[] exprParts = expression.split("\\+");
-                        double operand1 = Double.parseDouble(exprParts[0].trim());
-                        double operand2 = Double.parseDouble(exprParts[1].trim());
-                        double result = operand1 + operand2;
-                        String doubleLabel = "doubleValue" + doubleCounter++;
-                        dataSection.append(doubleLabel).append(": dq ").append(result).append("\n");
-                        assemblyCode.append("\tmovsd xmm0, [rel ").append(doubleLabel).append("]\n");
-                        assemblyCode.append("\tmovsd [rel ").append(varName).append("], xmm0\n");
-                    } else if (expression.matches("\\w+\\s*\\+\\s*\\w+") || expression.matches("\\w+\\s*\\+\\s*\\d+(\\.\\d+)?") || expression.matches("\\d+(\\.\\d+)?\\s*\\+\\s*\\w+")) {
-                        // Double arithmetic (addition): var + var or var + immediate or immediate + var
-                        String[] exprParts = expression.split("\\+");
-                        String operand1 = exprParts[0].trim();
-                        String operand2 = exprParts[1].trim();
-
-                        // Load first operand
-                        if (variableTypes.containsKey(operand1)) {
-                            assemblyCode.append("\tmovsd xmm0, [rel ").append(operand1).append("]\n");
-                        } else {
-                            // Immediate double value
-                            String doubleLabel1 = "doubleValue" + doubleCounter++;
-                            dataSection.append(doubleLabel1).append(": dq ").append(operand1).append("\n");
-                            assemblyCode.append("\tmovsd xmm0, [rel ").append(doubleLabel1).append("]\n");
-                        }
-
-                        // Load second operand
-                        if (variableTypes.containsKey(operand2)) {
-                            assemblyCode.append("\tmovsd xmm1, [rel ").append(operand2).append("]\n");
-                        } else {
-                            // Immediate double value
-                            String doubleLabel2 = "doubleValue" + doubleCounter++;
-                            dataSection.append(doubleLabel2).append(": dq ").append(operand2).append("\n");
-                            assemblyCode.append("\tmovsd xmm1, [rel ").append(doubleLabel2).append("]\n");
-                        }
-
-                        assemblyCode.append("\taddsd xmm0, xmm1\n");
-                        assemblyCode.append("\tmovsd [rel ").append(varName).append("], xmm0\n");
-                    } else {
-                        // Simple double assignment
-                        String doubleLabel = "doubleValue" + doubleCounter++;
-                        dataSection.append(doubleLabel).append(": dq ").append(expression).append("\n");
-                        assemblyCode.append("\tmovsd xmm0, [rel ").append(doubleLabel).append("]\n");
-                        assemblyCode.append("\tmovsd [rel ").append(varName).append("], xmm0\n");
-                    }
-                }
-            } else if (line.startsWith("cin>>")) {
-                // Handle input using scanf
-                String varName = line.substring(5).trim();
-                if (!declaredVariables.contains(varName)) {
-                    return "; Error: Variable '" + varName + "' is not declared.\n";
-                }
-                String varType = variableTypes.get(varName);
-                if (varType.equals("int")) {
-                    // Setup for scanf
-                    assemblyCode.append("\tlea rcx, [rel inputInt]\n");      // First argument: format string
-                    assemblyCode.append("\tlea rdx, [rel ").append(varName).append("]\n"); // Second argument: address of variable
-                    assemblyCode.append("\txor rax, rax\n");            // Clear RAX for variadic functions
-                    // Prepare stack (shadow space)
-                    assemblyCode.append("\tsub rsp, 40\n"); // 32 bytes shadow space + 8 bytes alignment
-                    // Push arguments onto the stack (right to left)
-                    assemblyCode.append("\tmov [rsp+32], rdx\n"); // Second argument
-                    assemblyCode.append("\tmov [rsp+24], rcx\n"); // First argument
-                    assemblyCode.append("\tcall scanf\n");
-                    // Clean up the stack
-                    assemblyCode.append("\tadd rsp, 40\n");
-                } else if (varType.equals("double")) {
-                    // Setup for scanf
-                    assemblyCode.append("\tlea rcx, [rel inputDouble]\n");   // First argument: format string
-                    assemblyCode.append("\tlea rdx, [rel ").append(varName).append("]\n"); // Second argument: address of variable
-                    assemblyCode.append("\txor rax, rax\n");            // Clear RAX for variadic functions
-                    // Prepare stack (shadow space)
-                    assemblyCode.append("\tsub rsp, 40\n"); // 32 bytes shadow space + 8 bytes alignment
-                    // Push arguments onto the stack (right to left)
-                    assemblyCode.append("\tmov [rsp+32], rdx\n"); // Second argument
-                    assemblyCode.append("\tmov [rsp+24], rcx\n"); // First argument
-                    assemblyCode.append("\tcall scanf\n");
-                    // Clean up the stack
-                    assemblyCode.append("\tadd rsp, 40\n");
-                }
-            } else if (line.startsWith("cout<<")) {
-                // Handle output
-                String[] parts = line.substring(6).split("<<");
-                for (String part : parts) {
-                    part = part.trim();
-                    if (part.isEmpty()) continue;
-
-                    if (part.startsWith("\"") && part.endsWith("\"")) {
-                        // Handle string output
-                        String label = "str" + stringCounter++;
-                        dataSection.append(label).append(": db ").append(part).append(", 0\n");
-                        // Prepare stack (shadow space)
-                        assemblyCode.append("\tsub rsp, 40\n"); // 32 bytes shadow space + 8 bytes alignment
-                        // Push arguments onto the stack (right to left)
-                        assemblyCode.append("\tlea rcx, [rel ").append(label).append("]\n");
-                        assemblyCode.append("\tmov [rsp+32], rcx\n");
-                        assemblyCode.append("\tcall printf\n");
-                        // Clean up the stack
-                        assemblyCode.append("\tadd rsp, 40\n");
-                    } else if (variableTypes.containsKey(part)) {
-                        String varType = variableTypes.get(part);
-                        if (varType.equals("int")) {
-                            // Prepare stack (shadow space)
-                            assemblyCode.append("\tsub rsp, 40\n"); // 32 bytes shadow space + 8 bytes alignment
-                            // Push arguments onto the stack (right to left)
-                            assemblyCode.append("\tmov eax, [rel ").append(part).append("]\n");
-                            assemblyCode.append("\tmov [rsp+32], rax\n"); // Argument value
-                            assemblyCode.append("\tlea rcx, [rel formatInt]\n");
-                            assemblyCode.append("\tmov [rsp+24], rcx\n"); // Format string
-                            assemblyCode.append("\tcall printf\n");
-                            // Clean up the stack
-                            assemblyCode.append("\tadd rsp, 40\n");
-                        } else if (varType.equals("double")) {
-                            // Prepare stack (shadow space)
-                            assemblyCode.append("\tsub rsp, 48\n"); // 32 bytes shadow space + 16 bytes for double alignment
-                            // Push arguments onto the stack (right to left)
-                            assemblyCode.append("\tmovsd xmm0, [rel ").append(part).append("]\n");
-                            assemblyCode.append("\tmovsd [rsp+32], xmm0\n"); // Argument value
-                            assemblyCode.append("\tlea rcx, [rel formatDouble]\n");
-                            assemblyCode.append("\tmov [rsp+24], rcx\n"); // Format string
-                            assemblyCode.append("\tcall printf\n");
-                            // Clean up the stack
-                            assemblyCode.append("\tadd rsp, 48\n");
-                        }
-                    } else {
-                        return "; Error: Variable '" + part + "' used in output is not declared.\n";
-                    }
-                }
-            }
-        }
-
-        // Epilogue: Restore stack frame and return
-        assemblyCode.append("\tmov rsp, rbp\n");
-        assemblyCode.append("\tpop rbp\n");
-        assemblyCode.append("\tmov eax, 0\n"); // Return 0 from main
-        assemblyCode.append("\tret\n");
-
-        // Combine sections
-        String finalAssemblyCode = dataSection.toString() + bssSection.toString() + assemblyCode.toString();
-
-        // Write the assembly code to a file
-        try (FileWriter writer = new FileWriter(PrimaryController.getFileName() + ".asm")) {
-            writer.write(finalAssemblyCode);
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
+            return null;
         }
-
-        bufferMessage("\nAssembly code successfully created! Output -> " + PrimaryController.getFileName() + ".asm");
-        return finalAssemblyCode;
     }
 
     public static boolean interpretFile(File file) {
@@ -458,7 +224,7 @@ public class Interpreter {
         }
 
         // If all checks passed
-        bufferMessage("No errors in file. Attempting to translate to x86 NASM assembly code...\n");
+        bufferMessage("No errors in file. Attempting to translate to AT&T assembly code...\n");
         writeMessagesToFile(); // Write messages to file
         PrimaryController.printToTerminal(); // Display messages
         return true; // Return true if no errors were found

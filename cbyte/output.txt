@@ -1,0 +1,92 @@
+
+Reading file: C:\Users\tsukk\OneDrive\Desktop\C++ Test Cases\PL4.cpp
+
+Checking if 'int' is a reserved word: true
+
+Found reserved word: int
+
+Checking if 'int' is a symbol: false
+
+Checking if 'a' is a reserved word: false
+
+Checking if 'a' is a symbol: false
+
+Checking if '=' is a reserved word: false
+
+Checking if '=' is a symbol: true
+
+Found symbol: =
+
+Checking if '5;' is a reserved word: false
+
+Checking if '5;' is a symbol: false
+
+Checking if 'cout' is a reserved word: true
+
+Found reserved word: cout
+
+Checking if 'cout' is a symbol: false
+
+Checking if '<<' is a reserved word: false
+
+Checking if '<<' is a symbol: true
+
+Found symbol: <<
+
+Checking if '"The' is a reserved word: false
+
+Checking if '"The' is a symbol: false
+
+Checking if 'value' is a reserved word: false
+
+Checking if 'value' is a symbol: false
+
+Checking if 'of' is a reserved word: false
+
+Checking if 'of' is a symbol: false
+
+Checking if 'a' is a reserved word: false
+
+Checking if 'a' is a symbol: false
+
+Checking if 'is:' is a reserved word: false
+
+Checking if 'is:' is a symbol: false
+
+Checking if '"' is a reserved word: false
+
+Checking if '"' is a symbol: false
+
+Checking if '<<' is a reserved word: false
+
+Checking if '<<' is a symbol: true
+
+Found symbol: <<
+
+Checking if 'a;' is a reserved word: false
+
+Checking if 'a;' is a symbol: false
+
+
+Source code after removing spaces:
+int a=5;cout<<"The value of a is: "<<a;
+
+
+Starting syntax check for code:
+int a=5;cout<<"The value of a is: "<<a;
+
+
+Checking statement: 'int a=5'
+
+
+Checking statement: 'cout<<"The value of a is: "<<a'
+
+Syntax check passed for all statements.
+
+No errors in file. Attempting to translate to AT&T assembly code...
+
+Compiling the C++ file into an executable using g++...
+
+Executable successfully created! Output -> PL4.exe
+
+Executing...

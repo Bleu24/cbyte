@@ -30,7 +30,7 @@ import java.util.ResourceBundle;
 
 import com.cbyte.classes.Interpreter;
 
-import static com.cbyte.classes.Interpreter.translateToAssembly;
+import static com.cbyte.classes.Interpreter.*;
 
 public class PrimaryController implements Initializable {
 
@@ -174,76 +174,27 @@ public class PrimaryController implements Initializable {
         }
     }
 
-    // Function that assembles the asm with NASM
-    private void assembleCode() {
+    // Function to execute the created .exe file using terminalTab
+    private static void compileAndRunCode() {
+
         if (terminalTab != null) {
-            String comStart = "Starting assembly process...\n";
-            String comSuccess = "Assembly command executed successfully.\n";
-            String comError = "Error during assembly process: ";
-
-            terminalTab.getTerminal().onTerminalFxReady(() -> {
-                Platform.runLater(() -> {
-                    try {
-                        String command = "nasm -f win64 " + fileName + ".asm -o " + fileName + ".obj" + "\r";
-                        System.out.println(comStart);
-                        terminalTab.getTerminal().command(command);
-                        System.out.println(comSuccess);
-                    } catch (Exception e) {
-                        String errorMessage = comError + e.getMessage();
-                        System.out.println(errorMessage);
-                        e.printStackTrace();
-                    }
-                });
-            });
-        } else {
-            System.out.println("Error: terminalTab is null, cannot proceed with assembly.");
-        }
-    }
-
-    // Function that links the object to an executable using GCC
-    private void linkCode() {
-        if (terminalTab != null) {
-            String comStart = "Starting linking process...\n";
-            String comSuccess = "Linking command executed successfully.\n";
-            String comError = "Error during linking process: ";
-
-            terminalTab.getTerminal().onTerminalFxReady(() -> {
-                Platform.runLater(() -> {
-                    try {
-                        String command = "gcc " + fileName + ".obj -o " + fileName + ".exe -m64 -lmsvcrt" + "\r";
-                        System.out.println(comStart);
-                        terminalTab.getTerminal().command(command);
-                        System.out.println(comSuccess);
-                    } catch (Exception e) {
-                        String errorMessage = comError + e.getMessage();
-                        System.out.println(errorMessage);
-                        e.printStackTrace();
-                    }
-                });
-            });
-        } else {
-            System.out.println("Error: terminalTab is null, cannot proceed with linking.");
-        }
-    }
-
-    // Function to execute the created .exe file
-    private void runCode() {
-        if (terminalTab != null) {
-            String comStart = "Starting execution of: " + fileName + ".exe\n";
-            String comSuccess = "Code ran successfully.\n";
             String comError = "Error during execution: ";
+
+            bufferMessage("Executing...");
+            writeMessagesToFile();
+            printToTerminal();
 
             terminalTab.getTerminal().onTerminalFxReady(() -> {
                 Platform.runLater(() -> {
                     try {
                         // Command to execute the .exe file
-                        String command = fileName + ".exe\r";
-                        System.out.println(comStart);
-                        terminalTab.getTerminal().command(command);
-                        System.out.println(comSuccess);
+                        String command = fileName + "\r";
+                        terminalTab.getTerminal().command(command);            // Execute the file
                     } catch (Exception e) {
                         String errorMessage = comError + e.getMessage();
-                        System.out.println(errorMessage);
+                        bufferMessage(errorMessage);
+                        writeMessagesToFile();
+                        printToTerminal();
                         e.printStackTrace();
                     }
                 });
@@ -252,6 +203,7 @@ public class PrimaryController implements Initializable {
             System.out.println("Error: terminalTab is null, cannot proceed with execution.");
         }
     }
+
 
     // Getter for fileName
     public static String getFileName() {
@@ -300,31 +252,12 @@ public class PrimaryController implements Initializable {
                 return; // Stop further execution
             }
 
-            // Call translateToAssembly and store the result
-            String assemblyCode = Interpreter.translateToAssembly(sourceCode);
-            System.out.println(assemblyCode);
+            String assemblyCode = translateToAssembly(sourceCode);
 
-            // Check if the translation was successful
-            if (assemblyCode != null && !assemblyCode.startsWith("; Error")) {
-                // If no error, proceed to assemble and run the code
+            if (assemblyCode != null) {
                 System.out.println("Assembly code translation successful.");
-                assembleCode();
-
-                // Create a Timeline to introduce a delay before calling linkCode() and then runCode()
-                Timeline timeline = new Timeline(
-                        new KeyFrame(Duration.seconds(2), e -> {
-                            linkCode();
-
-                            // Create another Timeline to call runCode() after linkCode()
-                            Timeline runTimeline = new Timeline(new KeyFrame(Duration.seconds(2), ev -> runCode()));
-                            runTimeline.setCycleCount(1); // Run only once
-                            runTimeline.play();
-                        })
-                );
-                timeline.setCycleCount(1); // Run only once
-                timeline.play();
+                compileAndRunCode();
             } else {
-                // Print error message if the assembly code contains errors or is null
                 System.out.println("Assembly translation failed or contains errors.");
             }
 
