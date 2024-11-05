@@ -4,17 +4,22 @@
 <?import javafx.scene.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.text.*?>
 
 <BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" prefHeight="800.0" prefWidth="1000.0" stylesheets="@../../styles.css" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.cbyte.PrimaryController">
    <top>
-      <HBox id="topBar" alignment="CENTER_RIGHT" prefHeight="43.0" prefWidth="600.0" BorderPane.alignment="CENTER">
+      <HBox id="topBar" alignment="CENTER_LEFT" maxWidth="1.7976931348623157E308" prefHeight="43.0" prefWidth="600.0" BorderPane.alignment="CENTER_LEFT">
          <children>
-            <Label id="cByte" alignment="CENTER" prefHeight="17.0" prefWidth="902.0" text="C-Byte" textFill="WHITE">
-               <font>
-                  <Font size="13.0" />
-               </font>
-            </Label>
+            <HBox alignment="CENTER_LEFT" maxWidth="1.7976931348623157E308" prefHeight="43.0" prefWidth="800.0" HBox.hgrow="ALWAYS">
+               <children>
+                  <Button id="logoBtn" mnemonicParsing="false">
+                     <padding>
+                        <Insets bottom="10.0" top="10.0" />
+                     </padding></Button>
+               </children>
+               <padding>
+                  <Insets left="10.0" />
+               </padding>
+            </HBox>
             <HBox alignment="CENTER_RIGHT" prefHeight="100.0" prefWidth="200.0" spacing="20.0">
                <children>
                   <Button id="minBtn" fx:id="minBtn" alignment="CENTER" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" onAction="#onMin">

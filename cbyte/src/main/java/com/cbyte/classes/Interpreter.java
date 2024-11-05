@@ -1,11 +1,16 @@
 package com.cbyte.classes;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import com.cbyte.PrimaryController; // Import the PrimaryController
 
 public class Interpreter {
@@ -15,7 +20,7 @@ public class Interpreter {
     private static final StringBuilder messageBuffer = new StringBuilder(); // Buffer to collect messages
 
     // Function to write all collected messages to a file
-    private static void writeMessagesToFile() {
+    public static void writeMessagesToFile() {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(OUTPUT_FILE_PATH, false))) { // Overwrite file
             writer.write(messageBuffer.toString());
         } catch (IOException e) {
@@ -24,7 +29,7 @@ public class Interpreter {
     }
 
     // Modified printToTerminal to collect messages in the buffer
-    private static void bufferMessage(String message) {
+    public static void bufferMessage(String message) {
         messageBuffer.append(message).append("\n");
     }
 
@@ -52,17 +57,22 @@ public class Interpreter {
         return cleanedCode;
     }
 
-    // Improved syntax checker using simplified regular expressions
-    private static boolean checkSyntax(String code) {
+    // Enhanced syntax checker with added support for double values and arithmetic expressions
+    private static Set<String> checkSyntax(String code) {
         bufferMessage("\nStarting syntax check for code:\n" + code + "\n");
 
-        // Regular expressions for different constructs
+        // Regular expressions for various C++ constructs
         String variableDeclarationRegex = "\\b(int|double)\\b\\s+\\w+\\s*";
-        String assignmentRegex = "\\w+\\s*=\\s*\\d+\\s*";
-        String inputRegex = "cin\\s*>>\\s*\\w+\\s*";
-        String outputRegex = "cout\\s*<<\\s*(\\w+|\".*\"|\\w+\\s*([+\\-*/]\\s*\\w+)+)\\s*";
+        String variableInitializationRegex = "\\b(int|double)\\b\\s+\\w+\\s*=\\s*\\d+(\\.\\d+)?\\s*";
+        // Updated assignment regex to handle arithmetic expressions and double values
+        String assignmentRegex = "\\w+\\s*=\\s*\\w+(\\s*\\+\\s*\\d+(\\.\\d+)?)?\\s*|\\w+\\s*=\\s*\\d+(\\.\\d+)?\\s*";
+        String inputRegex = "cin(\\s*>>\\s*\\w+)+\\s*";
+        String outputRegex = "cout(\\s*<<\\s*(\".*?\"|\\w+|\\d+|\\s*\\w+\\s*))*\\s*";
 
-        // Split the code into individual statements
+        Set<String> declaredVariables = new HashSet<>();
+        Map<String, String> variableTypes = new HashMap<>(); // Added to track variable types
+
+        // Split the code into individual statements using semicolons as delimiters
         String[] statements = code.split(";");
         for (String statement : statements) {
             statement = statement.trim();
@@ -70,114 +80,103 @@ public class Interpreter {
 
             bufferMessage("\nChecking statement: '" + statement + "'\n");
 
-            // Check each statement against all valid patterns
-            if (!statement.matches(variableDeclarationRegex) &&
-                    !statement.matches(assignmentRegex) &&
-                    !statement.matches(inputRegex) &&
-                    !statement.matches(outputRegex)) {
+            // Check for variable declaration without initialization
+            if (statement.matches(variableDeclarationRegex)) {
+                String[] parts = statement.split("\\s+");
+                String varType = parts[0].trim();
+                String variableName = parts[1].trim();
+                declaredVariables.add(variableName);
+                variableTypes.put(variableName, varType); // Add the variable type
+            }
+            // Check for variable declaration with initialization
+            else if (statement.matches(variableInitializationRegex)) {
+                String[] parts = statement.split("\\s+");
+                String varType = parts[0].trim();
+                String variableName = parts[1].split("=")[0].trim();
+                declaredVariables.add(variableName);
+                variableTypes.put(variableName, varType); // Add the variable type
+            }
+            // Check for assignment or arithmetic expressions
+            else if (statement.matches(assignmentRegex)) {
+                String variableName = statement.split("=")[0].trim();
+                if (!declaredVariables.contains(variableName)) {
+                    bufferMessage("Syntax error: Variable '" + variableName + "' is not declared before assignment.\n");
+                    return null;
+                }
+            }
+            // Check for input operation
+            else if (statement.matches(inputRegex)) {
+                String[] variables = statement.split(">>");
+                for (int i = 1; i < variables.length; i++) {
+                    String variableName = variables[i].trim();
+                    if (!declaredVariables.contains(variableName)) {
+                        bufferMessage("Syntax error: Variable '" + variableName + "' used in input is not declared.\n");
+                        return null;
+                    }
+                }
+            }
+            // Check for output operation
+            else if (statement.matches(outputRegex)) {
+                String[] parts = statement.split("<<");
+                for (String part : parts) {
+                    part = part.trim();
+                    if (part.equals("cout") || (part.startsWith("\"") && part.endsWith("\"")) || part.matches("\\d+")) {
+                        continue;
+                    }
+                    if (!part.isEmpty() && !declaredVariables.contains(part)) {
+                        bufferMessage("Syntax error: Variable '" + part + "' used in output is not declared.\n");
+                        return null;
+                    }
+                }
+            }
+            // If the statement does not match any valid construct, it's a syntax error
+            else {
                 bufferMessage("Syntax error found in statement: '" + statement + "'\n");
-                return false;
+                return null;
             }
         }
 
         bufferMessage("Syntax check passed for all statements.\n");
-        return true;
+        return declaredVariables;
     }
 
-    // Translates C++ code to x86 NASM assembly language for Windows and saves it in a file
-    private static String translateToAssembly(String code) {
-        StringBuilder assemblyCode = new StringBuilder();
-        Map<String, String> variableRegisters = new HashMap<>();
-        int registerIndex = 0;
-        String[] registers = {"rcx", "rdx", "r8", "r9"}; // Use x64 registers for Windows calling convention
-        StringBuilder dataSection = new StringBuilder("section .data\n");
-        StringBuilder bssSection = new StringBuilder("section .bss\n");
-        int stringCounter = 0;
+    // Function to translate C++ source code to assembly
+    public static String translateToAssembly(String code) {
+        try {
+            // Construct valid C++ content by adding necessary headers and a main function
+            String cppContent = "#include <iostream>\nusing namespace std;\nint main() {\n"
+                    + code
+                    + "\nreturn 0;\n}";
 
-        assemblyCode.append("section .text\n");
-        assemblyCode.append("\tglobal main\n");
-        assemblyCode.append("\textern printf\n");
-        assemblyCode.append("main:\n");
+            // Use PrimaryController.getFileName() for the file name
+            String baseFileName = PrimaryController.getFileName();
+            File tempCppFile = new File(baseFileName + ".cpp");
 
-        String[] lines = code.split(";");
-        for (String line : lines) {
-            line = line.trim();
-            if (line.isEmpty()) continue;
+            // Write the C++ content to a file
+            Files.write(tempCppFile.toPath(), cppContent.getBytes());
 
-            if (line.startsWith("int") || line.startsWith("double")) {
-                // Handle variable declaration
-                String varName = line.split(" ")[1].replace(";", "").trim();
-                if (!variableRegisters.containsKey(varName)) {
-                    if (registerIndex >= registers.length) {
-                        return "; Error: Too many variables declared. Not enough registers available.\n";
-                    }
-                    variableRegisters.put(varName, registers[registerIndex++]);
-                    assemblyCode.append("\t; Declare ").append(varName).append("\n");
-                }
-            } else if (line.contains("=")) {
-                // Handle variable initialization
-                String[] parts = line.split("=");
-                String varName = parts[0].trim();
-                String value = parts[1].replace(";", "").trim();
-                String register = variableRegisters.get(varName);
+            // Compile the C++ file into an executable using g++
+            Process process = new ProcessBuilder(
+                    "g++", tempCppFile.getName(), "-o", baseFileName + ".exe", "-m64"
+            ).inheritIO().start();
+            process.waitFor();
 
-                if (register == null) {
-                    return "; Error: Variable '" + varName + "' is not declared.\n";
-                }
+            bufferMessage("Compiling the C++ file into an executable using g++...\n");
+            PrimaryController.printToTerminal();
 
-                assemblyCode.append("\tmov ").append(register).append(", ").append(value).append("\n");
-            } else if (line.startsWith("cin>>")) {
-                // Handle input (Windows-specific, simplified)
-                String varName = line.substring(5).replace(";", "").trim();
-                String register = variableRegisters.get(varName);
+            // Output success message
+            System.out.println("\nExecutable successfully created! Output -> " + baseFileName + ".exe");
+            bufferMessage("Executable successfully created! Output -> " + baseFileName + ".exe\n");
+            PrimaryController.printToTerminal();
+            return cppContent;
 
-                if (register == null) {
-                    return "; Error: Variable '" + varName + "' is not declared.\n";
-                }
-
-                assemblyCode.append("\t; Input ").append(varName).append("\n");
-                assemblyCode.append("\t; Input handling in Windows requires complex API calls, simplified for now\n");
-            } else if (line.startsWith("cout<<")) {
-                // Handle output
-                String varName = line.substring(6).replace(";", "").trim();
-                if (varName.startsWith("\"") && varName.endsWith("\"")) {
-                    // Handle string output
-                    String label = "str" + stringCounter++;
-                    dataSection.append(label).append(": db ").append(varName).append(", 0\n");
-                    assemblyCode.append("\t; Output ").append(varName).append("\n");
-                    assemblyCode.append("\tmov rcx, ").append(label).append(" ; First argument to printf\n");
-                    assemblyCode.append("\tcall printf\n");
-                } else {
-                    // Handle variable output
-                    String register = variableRegisters.get(varName);
-                    if (register == null) {
-                        return "; Error: Variable '" + varName + "' is not declared.\n";
-                    }
-
-                    assemblyCode.append("\t; Output ").append(varName).append("\n");
-                    assemblyCode.append("\tmov rcx, ").append(register).append(" ; First argument to printf\n");
-                    assemblyCode.append("\tcall printf\n");
-                }
-            }
-        }
-
-        assemblyCode.append("\tret\n");
-
-        // Combine sections
-        String finalAssemblyCode = dataSection.toString() + bssSection.toString() + assemblyCode.toString();
-
-        // Write to file "assembly.asm"
-        try (FileWriter writer = new FileWriter(PrimaryController.getFileName() + ".asm")) {
-            writer.write(finalAssemblyCode);
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
+            return null;
         }
-
-        bufferMessage("\nAssembly code successfully created! Output -> " + PrimaryController.getFileName() + ".asm");
-        return finalAssemblyCode;
     }
 
-    public static String interpretFile(File file) {
+    public static boolean interpretFile(File file) {
         messageBuffer.setLength(0); // Clear the buffer for a new file
         bufferMessage("\nReading file: " + file.getAbsolutePath() + "\n");
 
@@ -191,7 +190,7 @@ public class Interpreter {
             bufferMessage("Could not open the source file " + file.getAbsolutePath() + "\n");
             writeMessagesToFile(); // Write messages to file
             PrimaryController.printToTerminal(); // Display messages
-            return "Could not open the source file " + file.getAbsolutePath() + "\n";
+            return false; // Return false if the file could not be opened
         }
 
         // Check for reserved words and symbols
@@ -206,24 +205,29 @@ public class Interpreter {
         }
 
         String noSpacesCode = removeSpaces(sourceCode.toString());
+        PrimaryController.setSourceCode(noSpacesCode); // Sets the noSpacesCode as the source code
         if (noSpacesCode.isEmpty()) {
             bufferMessage("ERROR: No content after removing spaces in " + file.getAbsolutePath() + "\n");
             writeMessagesToFile(); // Write messages to file
             PrimaryController.printToTerminal(); // Display messages
-            return "ERROR: No content after removing spaces in " + file.getAbsolutePath() + "\n";
+            return false; // Return false if the content is empty after removing spaces
         }
 
-        if (!checkSyntax(noSpacesCode)) {
+        // Check syntax and stop if there is an error
+        Set<String> variableList = checkSyntax(noSpacesCode);
+
+        if(variableList ==null) {
             bufferMessage("ERROR IN " + file.getAbsolutePath() + "\n");
             writeMessagesToFile(); // Write messages to file
             PrimaryController.printToTerminal(); // Display messages
-            return "ERROR IN " + file.getAbsolutePath() + "\n";
+            return false;
         }
 
-        String assemblyCode = translateToAssembly(noSpacesCode);
+        // If all checks passed
+        bufferMessage("No errors in file. Attempting to translate to AT&T assembly code...\n");
         writeMessagesToFile(); // Write messages to file
         PrimaryController.printToTerminal(); // Display messages
-        return assemblyCode;
+        return true; // Return true if no errors were found
     }
 
 }

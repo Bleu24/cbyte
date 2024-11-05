@@ -30,3 +30,9 @@
     -fx-graphic: url("./images/closeBtn.png");
     -fx-content-display: center;
 }
+
+#logoBtn {
+    -fx-background-color: transparent;
+    -fx-graphic: url("./images/logo.png");
+    -fx-content-display: center;
+}

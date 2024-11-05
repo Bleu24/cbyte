@@ -1,23 +1,15 @@
 
-Reading file: C:\Users\Bryan Reamillo\repos\124L\tests\PL2.cpp
+Reading file: C:\Users\tsukk\OneDrive\Desktop\C++ Test Cases\PL4.cpp
 
-Checking if 'x' is a reserved word: false
+Checking if 'int' is a reserved word: true
 
-Checking if 'x' is a symbol: false
+Found reserved word: int
 
-Checking if '=' is a reserved word: false
+Checking if 'int' is a symbol: false
 
-Checking if '=' is a symbol: true
+Checking if 'a' is a reserved word: false
 
-Found symbol: =
-
-Checking if '3;' is a reserved word: false
-
-Checking if '3;' is a symbol: false
-
-Checking if 'y' is a reserved word: false
-
-Checking if 'y' is a symbol: false
+Checking if 'a' is a symbol: false
 
 Checking if '=' is a reserved word: false
 
@@ -25,9 +17,9 @@ Checking if '=' is a symbol: true
 
 Found symbol: =
 
-Checking if '4;' is a reserved word: false
+Checking if '5;' is a reserved word: false
 
-Checking if '4;' is a symbol: false
+Checking if '5;' is a symbol: false
 
 Checking if 'cout' is a reserved word: true
 
@@ -41,36 +33,60 @@ Checking if '<<' is a symbol: true
 
 Found symbol: <<
 
-Checking if 'x' is a reserved word: false
+Checking if '"The' is a reserved word: false
 
-Checking if 'x' is a symbol: false
+Checking if '"The' is a symbol: false
 
-Checking if '+' is a reserved word: false
+Checking if 'value' is a reserved word: false
 
-Checking if '+' is a symbol: true
+Checking if 'value' is a symbol: false
 
-Found symbol: +
+Checking if 'of' is a reserved word: false
 
-Checking if 'y;' is a reserved word: false
+Checking if 'of' is a symbol: false
 
-Checking if 'y;' is a symbol: false
+Checking if 'a' is a reserved word: false
+
+Checking if 'a' is a symbol: false
+
+Checking if 'is:' is a reserved word: false
+
+Checking if 'is:' is a symbol: false
+
+Checking if '"' is a reserved word: false
+
+Checking if '"' is a symbol: false
+
+Checking if '<<' is a reserved word: false
+
+Checking if '<<' is a symbol: true
+
+Found symbol: <<
+
+Checking if 'a;' is a reserved word: false
+
+Checking if 'a;' is a symbol: false
 
 
 Source code after removing spaces:
-x=3;y=4;cout<<x+y;
+int a=5;cout<<"The value of a is: "<<a;
 
 
 Starting syntax check for code:
-x=3;y=4;cout<<x+y;
+int a=5;cout<<"The value of a is: "<<a;
 
 
-Checking statement: 'x=3'
+Checking statement: 'int a=5'
 
 
-Checking statement: 'y=4'
-
-
-Checking statement: 'cout<<x+y'
+Checking statement: 'cout<<"The value of a is: "<<a'
 
 Syntax check passed for all statements.
 
+No errors in file. Attempting to translate to AT&T assembly code...
+
+Compiling the C++ file into an executable using g++...
+
+Executable successfully created! Output -> PL4.exe
+
+Executing...

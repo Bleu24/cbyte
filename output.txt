@@ -1,0 +1,89 @@
+
+Reading file: C:\Users\Bryan Reamillo\repos\cbyte\C++ Test Cases\PL6.cpp
+
+Checking if 'int' is a reserved word: true
+
+Found reserved word: int
+
+Checking if 'int' is a symbol: false
+
+Checking if 'number;' is a reserved word: false
+
+Checking if 'number;' is a symbol: false
+
+Checking if 'cin' is a reserved word: true
+
+Found reserved word: cin
+
+Checking if 'cin' is a symbol: false
+
+Checking if '>>' is a reserved word: false
+
+Checking if '>>' is a symbol: true
+
+Found symbol: >>
+
+Checking if 'number;' is a reserved word: false
+
+Checking if 'number;' is a symbol: false
+
+Checking if 'cout' is a reserved word: true
+
+Found reserved word: cout
+
+Checking if 'cout' is a symbol: false
+
+Checking if '<<' is a reserved word: false
+
+Checking if '<<' is a symbol: true
+
+Found symbol: <<
+
+Checking if '"You' is a reserved word: false
+
+Checking if '"You' is a symbol: false
+
+Checking if 'entered:' is a reserved word: false
+
+Checking if 'entered:' is a symbol: false
+
+Checking if '"' is a reserved word: false
+
+Checking if '"' is a symbol: false
+
+Checking if '<<' is a reserved word: false
+
+Checking if '<<' is a symbol: true
+
+Found symbol: <<
+
+Checking if 'number;' is a reserved word: false
+
+Checking if 'number;' is a symbol: false
+
+
+Source code after removing spaces:
+int number;cin>>number;cout<<"You entered: "<<number;
+
+
+Starting syntax check for code:
+int number;cin>>number;cout<<"You entered: "<<number;
+
+
+Checking statement: 'int number'
+
+
+Checking statement: 'cin>>number'
+
+
+Checking statement: 'cout<<"You entered: "<<number'
+
+Syntax check passed for all statements.
+
+No errors in file. Attempting to translate to AT&T assembly code...
+
+Compiling the C++ file into an executable using g++...
+
+Executable successfully created! Output -> PL6.exe
+
+Executing...
