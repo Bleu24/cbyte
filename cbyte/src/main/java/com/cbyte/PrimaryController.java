@@ -58,12 +58,11 @@ public class PrimaryController implements Initializable {
     public void initialize(URL url, ResourceBundle resourceBundle) {
 
         System.out.println("Initializing PrimaryController...");
-
-        URL fontUrl = getClass().getResource("/fonts/FiraCode-VariableFont_wght.ttf");
-        if (fontUrl == null) {
+        InputStream fontStream = getClass().getResourceAsStream("/fonts/FiraCode-VariableFont_wght.ttf");
+        if (fontStream == null) {
             System.out.println("Font file not found!");
         } else {
-            font = Font.loadFont(fontUrl.toExternalForm(), 14);
+            font = Font.loadFont(fontStream, 14);
             System.out.println("Font loaded!");
             System.out.println("Loaded font family: " + font.getFamily());
         }

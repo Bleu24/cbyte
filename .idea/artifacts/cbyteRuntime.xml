@@ -1,0 +1,6 @@
+<component name="ArtifactManager">
+  <artifact type="jlink" name="cbyteRuntime">
+    <output-path>$PROJECT_DIR$/out/artifacts/cbyteRuntime</output-path>
+    <root id="root" />
+  </artifact>
+</component>
